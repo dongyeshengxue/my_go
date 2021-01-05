@@ -26,6 +26,7 @@ func main() {
 		// 产生一个0到1000随机数
 		b[i] = rand.Intn(1000)
 	}
+	fmt.Print("arr：", b, "\n")
 	sum := sumArr(b)
 	fmt.Printf("sum=%d\n", sum)
 }
