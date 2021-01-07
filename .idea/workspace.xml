@@ -25,7 +25,12 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="go.import.settings.migrated" value="true" />
-    <property name="last_opened_file_path" value="$USER_HOME$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/array" />
+    </key>
   </component>
   <component name="RunManager">
     <configuration name="go test awesomeProject2" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
