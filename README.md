@@ -1,3 +1,4 @@
+## 基础
 ### 主要特征
 1. 自动立即回收
 2. 更丰富的内置类型
@@ -678,6 +679,246 @@ func main() {
     fmt.Println(s3, len(s3), cap(s3))       //[0 0 0 0 0 0] 6 6
 }
 ```
+使用 make 动态创建slice，避免了数组必须用常量做长度的麻烦。还可用指针直接访问底层数组，退化成普通数组操作。
+``` go
+package main
+
+import "fmt"
+
+func main() {
+    s := []int{0, 1, 2, 3}
+    p := &s[2] // *int, 获取底层数组元素指针。
+    *p += 100
+
+    fmt.Println(s)  //    [0 1 102 3]
+}
+```
+至于 [][]T，是指元素类型为 []T 。
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+    data := [][]int{
+        []int{1, 2, 3},
+        []int{100, 200},
+        []int{11, 22, 33, 44},
+    }
+    fmt.Println(data)       //    [[1 2 3] [100 200] [11 22 33 44]]
+}
+```
+可直接修改 struct array/slice 成员。
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+    d := [5]struct {
+        x int
+    }{}
+
+    s := d[:]
+
+    d[1].x = 10
+    s[2].x = 20
+
+    fmt.Println(d)  //   [{0} {10} {20} {0} {0}]
+    fmt.Printf("%p, %p\n", &d, &d[0])   //0xc4200160f0, 0xc4200160f0
+
+}
+```
+用append内置函数操作切片（切片追加）
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    var a = []int{1, 2, 3}
+    fmt.Printf("slice a : %v\n", a)     //    slice a : [1 2 3]
+    var b = []int{4, 5, 6}
+    fmt.Printf("slice b : %v\n", b)     //    slice b : [4 5 6]
+    c := append(a, b...)
+    fmt.Printf("slice c : %v\n", c)     //    slice c : [1 2 3 4 5 6]
+    d := append(c, 7)
+    fmt.Printf("slice d : %v\n", d)     //    slice d : [1 2 3 4 5 6 7]
+    e := append(d, 8, 9, 10)
+    fmt.Printf("slice e : %v\n", e)     //    slice e : [1 2 3 4 5 6 7 8 9 10]
+
+}
+```
+append ：向 slice 尾部添加数据，返回新的 slice 对象。
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    s1 := make([]int, 0, 5)
+    fmt.Printf("%p\n", &s1)     //0xc42000a060
+
+    s2 := append(s1, 1)
+    fmt.Printf("%p\n", &s2)     //0xc42000a080
+
+    fmt.Println(s1, s2)                 //[] [1]
+
+}
+```
+超出原 slice.cap 限制，就会重新分配底层数组，即便原数组并未填满。
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    data := [...]int{0, 1, 2, 3, 4, 10: 0}
+    s := data[:2:3]
+
+    s = append(s, 100, 200) // 一次 append 两个值，超出 s.cap 限制。
+
+    fmt.Println(s, data)         // 重新分配底层数组，与原数组无关。    [0 1 100 200] [0 1 2 3 4 0 0 0 0 0 0]
+    fmt.Println(&s[0], &data[0]) // 比对底层数组起始指针。0xc4200160f0 0xc420070060
+
+}
+```
+从输出结果可以看出，append 后的 s 重新分配了底层数组，并复制数据。如果只追加一个值，则不会超过 s.cap 限制，也就不会重新分配。 通常以 2 倍容量重新分配底层数组。在大批量添加数据时，建议一次性分配足够大的空间，以减少内存分配和数据复制开销。或初始化足够长的 len 属性，改用索引号进行操作。及时释放不再使用的 slice 对象，避免持有过期数组，造成 GC 无法回收。
+
+#### slice中cap重新分配规律：
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    s := make([]int, 0, 1)
+    c := cap(s)
+
+    for i := 0; i < 50; i++ {
+        s = append(s, i)
+        if n := cap(s); n > c {
+            fmt.Printf("cap: %d -> %d\n", c, n)
+            c = n
+        }
+    }
+
+}
+```
+输出结果：
+    cap: 1 -> 2
+    cap: 2 -> 4
+    cap: 4 -> 8
+    cap: 8 -> 16
+    cap: 16 -> 32
+    cap: 32 -> 64
+
+切片拷贝：
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    s1 := []int{1, 2, 3, 4, 5}
+    fmt.Printf("slice s1 : %v\n", s1)   //    slice s1 : [1 2 3 4 5]
+    s2 := make([]int, 10)
+    fmt.Printf("slice s2 : %v\n", s2)   //    slice s2 : [0 0 0 0 0 0 0 0 0 0]
+    copy(s2, s1)
+    fmt.Printf("copied slice s1 : %v\n", s1)   // copied slice s1 : [1 2 3 4 5]
+    fmt.Printf("copied slice s2 : %v\n", s2)    //    copied slice s2 : [1 2 3 4 5 0 0 0 0 0]
+    s3 := []int{1, 2, 3}
+    fmt.Printf("slice s3 : %v\n", s3)   //    slice s3 : [1 2 3]
+    s3 = append(s3, s2...)
+    fmt.Printf("appended slice s3 : %v\n", s3)  //    appended slice s3 : [1 2 3 1 2 3 4 5 0 0 0 0 0]
+    s3 = append(s3, 4, 5, 6)
+    fmt.Printf("last slice s3 : %v\n", s3)  //    last slice s3 : [1 2 3 1 2 3 4 5 0 0 0 0 0 4 5 6]
+
+}
+```
+copy ：函数 copy 在两个 slice 间复制数据，复制长度以 len 小的为准。两个 slice 可指向同一底层数组，允许元素区间重叠。
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    data := [...]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    fmt.Println("array data : ", data)  //    array data :  [0 1 2 3 4 5 6 7 8 9]
+    s1 := data[8:]
+    s2 := data[:5]
+    fmt.Printf("slice s1 : %v\n", s1)   //    slice s1 : [8 9]
+    fmt.Printf("slice s2 : %v\n", s2)   //    slice s2 : [0 1 2 3 4]
+    copy(s2, s1)
+    fmt.Printf("copied slice s1 : %v\n", s1)    //    copied slice s1 : [8 9]
+    fmt.Printf("copied slice s2 : %v\n", s2)    //    copied slice s2 : [8 9 2 3 4]
+    fmt.Println("last array data : ", data)     //    last array data :  [8 9 2 3 4 5 6 7 8 9]
+
+}
+```
+应及时将所需数据 copy 到较小的 slice，以便释放超大号底层数组内存。
+#### slice遍历
+``` go
+package main
+
+import (
+    "fmt"
+)
+
+func main() {
+
+    data := [...]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    slice := data[:]
+    for index, value := range slice {
+        fmt.Printf("inde : %v , value : %v\n", index, value)
+    }
+
+}
+
+输出结果：
+    inde : 0 , value : 0
+    inde : 1 , value : 1
+    inde : 2 , value : 2
+    inde : 3 , value : 3
+    inde : 4 , value : 4
+    inde : 5 , value : 5
+    inde : 6 , value : 6
+    inde : 7 , value : 7
+    inde : 8 , value : 8
+    inde : 9 , value : 9
+```
+
+
+
+
+
+
+
+
+
+
 
 
 ## IO操作
